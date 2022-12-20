@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn } from "typeorm";
-import { ObjectType, Field, ID } from "type-graphql";
+import { ObjectType, Field, ID, InputType } from "type-graphql";
+import { IsEmail, Length } from "class-validator";
 // import { IsEmail, Length } from "class-validator";
 
 @Entity()
@@ -18,13 +19,13 @@ export class User {
   password: string;
 }
 
-// @InputType()
-// export class UserInput {
-//   @Field()
-//   @IsEmail()
-//   email: string;
+@InputType()
+export class UserInput {
+  @Field()
+  @IsEmail()
+  email: string;
 
-//   @Field()
-//   @Length(8, 60)
-//   password: string;
-// }
+  @Field()
+  @Length(8, 60)
+  password: string;
+}

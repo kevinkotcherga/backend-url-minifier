@@ -16,7 +16,16 @@ async function bootstrap(): Promise<void> {
   const server = new ApolloServer({
     schema,
     cors: true,
-  });
+    context: ({ req }) => {
+      // get the user token from the headers
+      const authorization: string = req?.headers?.authorization;
+      if(authorization) {
+        const token = authorization.split(' ').pop();
+        return {token}
+      }
+      return { token: null };
+      },
+    });
 
   // Start the server
   const { url } = await server.listen(PORT);

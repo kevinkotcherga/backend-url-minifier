@@ -1,14 +1,64 @@
-import { Resolver, Mutation, Arg, Query } from "type-graphql";
-import { User} from "../entities/User";
+import { Resolver, Mutation, Arg, Query, Ctx } from "type-graphql";
+import { User, UserInput} from "../entities/User";
 import datasource from "../utils";
-import{ hash } from "argon2";
+import{ hash, verify } from "argon2";
+import { sign, verify as jwtVerify } from "jsonwebtoken";
 
 @Resolver()
 export class UsersResolver {
   @Mutation(() => User)
-  async createUser(@Arg('email') email: string, @Arg('password') password: string): Promise<User> {
-    const hashedPassword = await hash(password);
-    return await datasource.getRepository(User).save({ email, password: hashedPassword });
+  async createUser(@Arg('data', () => UserInput) data: UserInput): Promise<User> {
+    data.password = await hash(data.password);
+    return await datasource.getRepository(User).save(data);
+  }
+
+  @Mutation(() => String, {nullable: true})
+  async signin(
+    @Arg('email') email: string,
+    @Arg('password') password: string
+    ): Promise<string | null> {
+    try {
+      const user = await datasource
+      .getRepository(User)
+      .findOne({where: {email} });
+
+      if(!user){
+        return null;
+      }
+
+      if(await verify(user.password, password)){
+        const token = sign({userId: user.id}, 'supersecret!');
+        return token;
+      } else {
+        return null;
+      }
+    } catch {
+      return null;
+    };
+  }
+
+  @Query(() => User, {nullable: true})
+  async me(@Ctx() context: { token: null | string }): Promise<User | null> {
+    const token = context.token;
+
+    if(token === null){
+      return null;
+    }
+
+    try {
+      const decodedToken: {userId: number} = jwtVerify(token, "supersecret!") as any;
+      const userId = decodedToken.userId;
+      const user = await datasource.getRepository(User).findOne({where: {id: userId}});
+
+      if(user == null) {
+        return null;
+      }
+
+      return user;
+
+    } catch {
+      return null;
+    }
   }
 
   @Query(() => [User])
@@ -16,5 +66,3 @@ export class UsersResolver {
     return await datasource.getRepository(User).find({});
   }
 }
-
-// 32min50 stop vidéo
